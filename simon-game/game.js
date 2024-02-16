@@ -41,8 +41,6 @@ function updateHighScore(score) {
 
 function checkAnswer(currentLevel){
     var check=true;
-    console.log(gamePattern);
-    console.log(userClickedPattern);
     if (userClickedPattern[currentLevel] === gamePattern[currentLevel]) {
         console.log("success");
 
