@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Linear Regression (Realtime)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f9fafb;
+      color: #111827;
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+    }
+
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    input[type="number"] {
+      padding: 0.6rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      flex: 1 1 120px;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 0.6rem 1rem;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #1d4ed8;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 1rem 0 2rem;
+    }
+
+    li {
+      background: white;
+      padding: 0.5rem 0.8rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .remove-btn {
+      background-color: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .remove-btn:hover {
+      background-color: #b91c1c;
+    }
+
+    #chartWrapper {
+      height: 400px;
+      position: relative;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Realtime Linear Regression: y = ax + b</h2>
+
+  <form id="pointForm">
+    <input type="number" id="xInput" step="any" placeholder="X" required>
+    <input type="number" id="yInput" step="any" placeholder="Y" required>
+    <button type="submit">Add</button>
+  </form>
+
+  <ul id="pointList"></ul>
+
+  <div id="chartWrapper">
+    <canvas id="chartCanvas"></canvas>
+  </div>
+
+  <script>
+    const xData = [];
+    const yData = [];
+
+    const xInput = document.getElementById('xInput');
+    const yInput = document.getElementById('yInput');
+    const pointList = document.getElementById('pointList');
+    const ctx = document.getElementById('chartCanvas').getContext('2d');
+
+    const chart = new Chart(ctx, {
+      type: 'scatter',
+      data: {
+        datasets: []
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'X' } },
+          y: { title: { display: true, text: 'Y' } }
+        },
+        plugins: {
+          legend: {
+            display: true
+          }
+        }
+      }
+    });
+
+    function linearRegression(x, y) {
+      const n = x.length;
+      const sumX = x.reduce((a, b) => a + b, 0);
+      const sumY = y.reduce((a, b) => a + b, 0);
+      const sumXY = x.reduce((sum, xi, i) => sum + xi * y[i], 0);
+      const sumX2 = x.reduce((sum, xi) => sum + xi * xi, 0);
+
+      const a = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+      const b = (sumY - a * sumX) / n;
+
+      return { a, b };
+    }
+
+    function updateChart() {
+      const points = xData.map((x, i) => ({ x, y: yData[i] }));
+
+      let regressionLine = [];
+      if (xData.length >= 2) {
+        const { a, b } = linearRegression(xData, yData);
+        const minX = Math.min(...xData);
+        const maxX = Math.max(...xData);
+        regressionLine = [
+          { x: minX, y: a * minX + b },
+          { x: maxX, y: a * maxX + b }
+        ];
+
+        chart.data.datasets = [
+          {
+            label: 'Data Points',
+            data: points,
+            backgroundColor: '#3b82f6',
+            showLine: false
+          },
+          {
+            label: `y = ${a.toFixed(2)}x + ${b.toFixed(2)}`,
+            data: regressionLine,
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            pointRadius: 0,
+            showLine: true
+          }
+        ];
+      } else {
+        chart.data.datasets = [
+          {
+            label: 'Data Points',
+            data: points,
+            backgroundColor: '#3b82f6',
+            showLine: false
+          }
+        ];
+      }
+
+      chart.update();
+    }
+
+    function updatePointList() {
+      pointList.innerHTML = '';
+      xData.forEach((x, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span>(${x}, ${yData[i]})</span>`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Remove';
+        btn.className = 'remove-btn';
+        btn.onclick = () => {
+          xData.splice(i, 1);
+          yData.splice(i, 1);
+          updatePointList();
+          updateChart();
+        };
+        li.appendChild(btn);
+        pointList.appendChild(li);
+      });
+    }
+
+    document.getElementById('pointForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const x = parseFloat(xInput.value);
+      const y = parseFloat(yInput.value);
+
+      if (!isNaN(x) && !isNaN(y)) {
+        xData.push(x);
+        yData.push(y);
+        xInput.value = '';
+        yInput.value = '';
+        xInput.focus();
+        updatePointList();
+        updateChart();
+      }
+    });
+  </script>
+</body>
+</html>
